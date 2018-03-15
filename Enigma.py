@@ -1,17 +1,26 @@
 #Enigma Machine Simulator
 #By Matthew
 #Function definitions
+listlen26 = list('00000000000000000000000000')
 def lettertonumber(letter):
   charicter=ord(letter)-65
   return charicter
 def numbertoletter(number):
-  return chr(number+65)
+  if number < 26:
+    return chr(number+65)
+  if number >= 26:
+    return chr(number+65-26)
 def shift_list(array, s):
     s %= len(array)
     return (array[s:] + array[:s])
+def reciprocaltable(array):
+  array2=listlen26
+  for x in range(len(array)):
+    array2[rotorI[x]]=x
+  return array2
 
 #Plugboard. First element is the "A" setting, second is "B", etc
-plugboard = ['A','Q','D','C','X','K','G','U','M','N','F','L','I','J','O','S','B','R','P','T','H','V','W','E','Z','Y']
+plugboard = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
 
 #rotor definitions
@@ -40,7 +49,21 @@ reflector = UKWB
 print("Rotor starting position. Make sure they are capital letters!")
 rotor1start = lettertonumber('A')
 rotor2start = lettertonumber('A')
-rotor3start = lettertonumber('A')
+rotor3start = lettertonumber('Z')
+print("Rotor starting positions: " + str(numbertoletter(rotor1start)) + ", " + str(numbertoletter(rotor2start)) + ", " + str(numbertoletter(rotor3start)) + ".")
+print("-----------------")
+
+#Make reciprocal rotor tables. We do this for rotor 1, 2 and 3 (NOT I, II and III), so it's as modular as possible.
+reciprocalrotor1state = reciprocaltable(rotor1state)
+reciprocalrotor2state = reciprocaltable(rotor2state)
+reciprocalrotor3state = reciprocaltable(rotor3state)
+
+#Rotate the rotors to the starting positions
+#What we do is rotate by the ordinal of the lettertonumber
+rotor1state = shift_list(rotor1state,(rotor1start))
+rotor2state = shift_list(rotor2state,(rotor2start))
+rotor3state = shift_list(rotor3state,(rotor3start))
+
 
 #Turn the plugboard into a 
 plugboardnumbers = []
@@ -48,10 +71,10 @@ for x in range(len(plugboard)):
   plugboardnumbers.append(lettertonumber(plugboard[x]))
 print("plug board settings: ")
 print(plugboardnumbers)
-print(" ")
+print("-----------------")
 
 #Input stuff. This line removes all the non-letters from the input.
-input_charicter = list(''.join(filter(str.isalpha, ('abcdabcdzyx'.upper()) ) ))    #input("What is your message?").upper()  <== Use this instead later
+input_charicter = list(''.join(filter(str.isalpha, ('A'.upper()) ) ))    #input("What is your message?").upper()  <== Use this instead later
 print("Your message is: " + str(input_charicter))
 input_ord = [] #This is our ordinal number list. We make it blank to start.
 length = ((len(input_charicter))) #Input length
@@ -60,8 +83,8 @@ print("Your message length: " + str(length)) #Prints input length
 
 for x in range(length): #This loop will turn the input charicters into numbers
   input_ord.append(lettertonumber(input_charicter[x]))
-print("Your message in numbers:")
-print(input_ord) #Prints our array which is a list of non-letters.
+print("Your message in numbers: " + str(input_ord))
+
 
 #Plug board stuff. So what we are going to need to do here is make a new list, take a number input, and replace it with the corrosponding index of the 'plugboard' list. 
 plugboard_output=[]
@@ -71,59 +94,93 @@ output=[]
 rotor1pos = rotor1start
 rotor2pos = rotor2start
 rotor3pos = rotor3start
-print(rotor1state)
+print("-----------------")
+print("The current state of the rotors:")
+print(str(numbertoletter(rotor1pos)))
+print(str(numbertoletter(rotor2pos)))
+print(str(numbertoletter(rotor3pos)))
+print("-----------------")
 print("LOOP INIT!")
 for x in range(length):
-  
-  #Step all da rotors forward
-  #We have to check 3 things:
-    #Is rotor 1's notch engaged with rotor 2?
-    #This happens if rotor1 is currently in the "Notch-up" orientation - i.e. we are currently on letter Q, or rotor1pos = 16
-      #That would mean rotors 1 and 2 rotate
-    #Is rotor 2's notch engaged with 3?
-      #That would mean rotor 3 rotates
-    #Are they both engaged?
-      #That would mean all 3 rotors rotate
-    #Else, only rotor 1 rotates.
-  
-  #Rotor stepping logic
-  stepR1 = True
+  stepR1 = False
   stepR2 = False
   stepR3 = False
-  if rotor1pos == rotor1notch:
-    stepR2 = True
+  
+  #Rotor stepping logic
+  #REMEMBER! The rotors go Reflector - Rotor1 - Rotor2 - Rotor3!
+  
+  #Rules per the paper enigma page:   
+  #To handle turnover correctly, we need to add to our instructions above for turning the rotors, based on the letters showing in line with the grey bars:
+    
+    #If the letter on the middle rotor is shaded grey, turn all three rotors one step towards you,
+    
+    #otherwise, if the letter on the right-hand rotor is shaded grey, turn the middle and right-hand rotors one step towards you,
+    
+    #otherwise, turn just the right-hand rotor one step towards you.
+    
+  #The shading of the letter on the left-hand rotor doesn't matter; it would only come in to play if that rotor was in a different place in the order.
+
   if rotor2pos == rotor2notch:
+    stepR1 = True
+    stepR2 = True
     stepR3 = True
+  elif rotor3pos == rotor3notch:
+    stepR2 = True
+    stepR3 = True
+  else:
+    stepR3 = True
+  print("Loop iteration: " + str(x))
+  print("R1 step is " + str(stepR1))
+  print("R2 step is " + str(stepR2))
+  print("R3 step is " + str(stepR3))
+  
   
   #Array rotation stuff
   if stepR1 == True:
     #Rotate rotor 1's array
     rotor1state = shift_list(rotor1state, 1)
+    rotor1pos = rotor1pos + 1
+    print("Rotor 1 has stepped!")
   if stepR2 == True:
     #Rotate rotor 2's array
     rotor2state = shift_list(rotor2state, 1)
-  if stepR2 == True:
+    print("Rotor 2 has stepped!")
+    rotor2pos = rotor2pos + 1
+  if stepR3 == True:
     #Rotate rotor 3's array
     rotor3state = shift_list(rotor3state, 1)
+    rotor3pos = rotor3pos + 1
+    print("Rotor 3 has stepped! Position: " + str(numbertoletter(rotor3pos)))
   #OK, all the rotations are done. Now we gotta put the letter through the Enimga's stepped path. First, figure out what letter we're rotating
   thingWeAreManipulating = input_ord[x]
-  
+  print("We start with " + str(numbertoletter(thingWeAreManipulating)) + ".")
   #First, the plugboard!
   thingWeAreManipulating = plugboardnumbers[thingWeAreManipulating]
+  print("After the plugboard, we get " + str(numbertoletter(thingWeAreManipulating)))
   #Next, rotor 1, 2 and 3!
-  thingWeAreManipulating = rotor1state[thingWeAreManipulating]
-  thingWeAreManipulating = rotor2state[thingWeAreManipulating]
   thingWeAreManipulating = rotor3state[thingWeAreManipulating]
+  print("After the right rotor, we get " + str(numbertoletter(thingWeAreManipulating)))
+  thingWeAreManipulating = rotor2state[thingWeAreManipulating]
+  print("After the middle rotor, we get " + str(numbertoletter(thingWeAreManipulating)))
+  thingWeAreManipulating = rotor1state[thingWeAreManipulating]
+  print("After the left rotor, we get " + str(numbertoletter(thingWeAreManipulating)))
   #Reflector!
   thingWeAreManipulating = reflector[thingWeAreManipulating]
+  print("After the reflector, we get " + str(numbertoletter(thingWeAreManipulating)))
   #Back through 3, 2 and 1!
-  thingWeAreManipulating = rotor3state[thingWeAreManipulating]
-  thingWeAreManipulating = rotor2state[thingWeAreManipulating]
   thingWeAreManipulating = rotor1state[thingWeAreManipulating]
+  print("After the left rotor again, we get " + str(numbertoletter(thingWeAreManipulating)))
+  thingWeAreManipulating = rotor2state[thingWeAreManipulating]
+  print("After the middle rotor again, we get " + str(numbertoletter(thingWeAreManipulating)))
+  thingWeAreManipulating = rotor3state[thingWeAreManipulating]
+  print("After the right rotor again, we get " + str(numbertoletter(thingWeAreManipulating)))
   #Plugboard(agan)
-  thingWeAreManipulating = plugboardnumbers[thingWeAreManipulating] 
+  thingWeAreManipulating = plugboardnumbers[thingWeAreManipulating]
+  print("After the plugboard (again), we get " + str(numbertoletter(thingWeAreManipulating)))
   #Huzzah! Ok. Now append to the output list and do it all agian
   output.append(thingWeAreManipulating)
+  
+  print("-----------------")
   
 print("")
 print("Output:")
